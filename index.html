@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты исследования</title>
+    <link rel="stylesheet" href="./css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="card">
+        <h1>Мои результаты</h1>
+        <div class="subhead">
+            Результат исследования по заявке <span style="font-weight:700;">№______</span> — является подлинным.
+        </div>
+
+        <!-- Форма (полностью повторяет логику скриншота, но номер заявки — единственное обязательное) -->
+        <div class="field">
+            <label>Город <span>*</span></label>
+            <input type="text" id="city" placeholder="Калуга" value="Калуга">
+        </div>
+
+        <div class="field">
+            <label>Номер заявки <span style="color:#b22234;">*</span></label>
+            <input type="text" id="claimNumber" placeholder="например 3029000002536" autocomplete="off">
+            <div class="hint">
+                <i>ⓘ от 7 до 10 цифр?</i> Используйте номера из чека/договора. В нашей базе: 
+                <strong>3029000002536</strong> и <strong>3029000002535</strong>
+            </div>
+        </div>
+
+        <div class="field">
+            <label>Дата рождения *</label>
+            <input type="text" id="birthDate" placeholder="15.03.2006" value="15.03.2006">
+        </div>
+
+        <div class="field">
+            <label>Фамилия *</label>
+            <input type="text" id="lastName" placeholder="АНОНИМ" value="АНОНИМ">
+            <div class="hint">
+                Только фамилия без инициалов. Должна соответствовать договору.
+            </div>
+        </div>
+
+        <div class="inline-group">
+            <div class="field">
+                <label>Имя</label>
+                <input type="text" id="firstName" placeholder="необязательно">
+            </div>
+            <div class="field">
+                <label>Отчество</label>
+                <input type="text" id="middleName" placeholder="необязательно">
+            </div>
+        </div>
+
+        <div class="checkbox">
+            <input type="checkbox" id="consent" checked>
+            <label for="consent" style="margin:0; font-weight:400;">Я даю согласие на обработку персональных данных</label>
+        </div>
+
+        <button id="checkButton">Проверить заявку</button>
+
+        <!-- Блок результата -->
+        <div id="resultContainer" style="min-height:100px;"></div>
+
+        <hr>
+        <div class="db-badge">⚕️ база содержит 2 тестовых номера: 3029000002536 / 3029000002535</div>
+
+        <!-- QR-коды на прямые ссылки (будут сгенерированы после загрузки страницы) -->
+        <div id="qrContainer" class="qr-section">
+            <div class="qr-item">
+                <div id="qr1"></div>
+                <div class="qr-label">Заявка № 3029000002536</div>
+            </div>
+            <div class="qr-item">
+                <div id="qr2"></div>
+                <div class="qr-label">Заявка № 3029000002535</div>
+            </div>
+        </div>
+        <div class="small-note">
+            ⚡ QR-коды ведут на эту же страницу с предзаполненным номером (якорь #claim=...).<br>
+            Нажмите на <span class="fake-link" id="demoLink1">ссылку 2536</span> или <span class="fake-link" id="demoLink2">ссылку 2535</span> для демо.
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // База "подлинных" номеров
+            const VALID_CLAIMS = new Set(['3029000002536', '3029000002535']);
+
+            // Элементы формы
+            const claimInput = document.getElementById('claimNumber');
+            const cityInput = document.getElementById('city');
+            const birthInput = document.getElementById('birthDate');
+            const lastNameInput = document.getElementById('lastName');
+            const firstNameInput = document.getElementById('firstName');
+            const middleNameInput = document.getElementById('middleName');
+            const consentCheck = document.getElementById('consent');
+            const checkBtn = document.getElementById('checkButton');
+            const resultDiv = document.getElementById('resultContainer');
+
+            // Функция отображения результата
+            function renderResult(claimNumber) {
+                const trimmed = claimNumber ? claimNumber.trim() : '';
+                const found = VALID_CLAIMS.has(trimmed);
+
+                let html = '';
+                if (trimmed === '') {
+                    // ничего не показываем, если поле пустое (или можно скрыть)
+                    resultDiv.innerHTML = '';
+                    return;
+                }
+
+                if (found) {
+                    html = `<div class="result-card">
+                        <div class="result-authentic">
+                            ✅ Результат исследования по заявке №${trimmed} — является подлинным.
+                        </div>
+                        <div class="meta-note">Данные соответствуют базе лаборатории.</div>
+                    </div>`;
+                } else {
+                    html = `<div class="result-card">
+                        <div class="result-notfound">
+                            ❌ Заявка №${trimmed} не найдена.
+                        </div>
+                        <div class="meta-note">Проверьте номер или обратитесь в центр.</div>
+                    </div>`;
+                }
+                resultDiv.innerHTML = html;
+            }
+
+            // Обработчик кнопки
+            checkBtn.addEventListener('click', function() {
+                const claimValue = claimInput.value.trim();
+                renderResult(claimValue);
+            });
+
+            // Дополнительно: если нажать Enter в поле номера
+            claimInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    renderResult(claimInput.value.trim());
+                }
+            });
+
+            // Предзаполнение номера из хэша (пример: #claim=3029000002536)
+            function checkHashForClaim() {
+                const hash = window.location.hash.substring(1); // убираем '#'
+                if (hash.startsWith('claim=')) {
+                    const claimFromHash = hash.replace('claim=', '');
+                    if (claimFromHash) {
+                        claimInput.value = claimFromHash;
+                        renderResult(claimFromHash);
+                    }
+                } else {
+                    // если хотим при чистом хэше ничего не делаем
+                }
+            }
+            window.addEventListener('load', checkHashForClaim);
+            window.addEventListener('hashchange', checkHashForClaim);
+
+            // ---- Генерация QR-кодов для двух заявок ----
+            // Ссылка на текущую страницу с якорем (абсолютная)
+            const baseUrl = window.location.href.split('#')[0]; // убираем старый хэш
+
+            function generateQr(elementId, claimNumber) {
+                const url = baseUrl + '#claim=' + claimNumber;
+                const canvasId = 'qrCanvas_' + claimNumber;
+                const container = document.getElementById(elementId);
+                if (!container) return;
+                // Очистить и создать canvas
+                container.innerHTML = `<canvas id="${canvasId}" width="160" height="160"></canvas>`;
+                const canvas = document.getElementById(canvasId);
+                if (canvas) {
+                    QRCode.toCanvas(canvas, url, { width: 160, margin: 1, color: { dark: '#0a2e4f', light: '#f5faff' } }, function (error) {
+                        if (error) console.error(error);
+                    });
+                }
+            }
+
+            // Ждём загрузку библиотеки QRCode (асинхронно)
+            setTimeout(() => {
+                try {
+                    if (typeof QRCode !== 'undefined') {
+                        generateQr('qr1', '3029000002536');
+                        generateQr('qr2', '3029000002535');
+                    } else {
+                        console.warn('QR library not ready');
+                    }
+                } catch (e) {
+                    console.warn('QR generation error', e);
+                }
+            }, 200);
+
+            // демо-ссылки
+            document.getElementById('demoLink1').addEventListener('click', function(e) {
+                e.preventDefault();
+                window.location.hash = 'claim=3029000002536';
+                claimInput.value = '3029000002536';
+                renderResult('3029000002536');
+            });
+            document.getElementById('demoLink2').addEventListener('click', function(e) {
+                e.preventDefault();
+                window.location.hash = 'claim=3029000002535';
+                claimInput.value = '3029000002535';
+                renderResult('3029000002535');
+            });
+
+            // Если номер уже был предзаполнен при загрузке (например, из хэша) – отрисовать результат
+            if (claimInput.value.trim() !== '') {
+                renderResult(claimInput.value.trim());
+            }
+
+            // Эстетика: если вдруг захотят сбросить
+        })();
+    </script>
+
+    <!-- дополнительная стилизация для имитации скриншота -->
+    <div style="font-size:0.8rem; color:#2f5a7a; text-align:center; max-width:600px;">
+        * Образец чека: номера заявок могут быть на договоре. Необязательные поля не влияют на результат.
+    </div>
+</body>
+</html>
